@@ -9,13 +9,16 @@
 G_MODULE_EXPORT gboolean draw_area_on_draw (GtkWidget *widget, cairo_t *cr, gpointer data);
 G_MODULE_EXPORT void on_MagPhase_changed (GtkAdjustment *adjustment, gpointer user_data);
 G_MODULE_EXPORT void on_btn_Phase0_clicked (GtkButton *button, gpointer data);
+
+extern int32_t sine_approx_table_256_order_1_acs_5 [];
 //--------------------------------------------------------------------------------------
 typedef struct
 {
 	GtkWidget      *label;
 	GtkWidget      *scale;
 	GtkAdjustment  *adj;
-	double          val;     // сюда переписывается значение из adj
+	//double          val;     // сюда переписывается значение из adj
+	int32_t         val;     // сюда переписывается значение из adj fix.point 0.32
 }
 s_HarmonicScale;
 
@@ -46,6 +49,35 @@ GtkWidget     *window_draw;
 GtkWidget     *drawing_area;
 
 gboolean harmonics_in_update = TRUE;  // устанавливаем в 1, когда массово обновляем параметры гармоник (что бы не рисовать много)
+
+//-----------------------------------------------------------------------------------------------------------------
+int32_t get_sine_int32(const int32_t* table, int32_t pN, int pw, int ac_shift, uint32_t angle)
+{
+	// вычисляем синус угла angle, используя таблицу table, состоящей из
+	// 2^pN строк и полином степени pw
+	// angle делится на целую часть (pN бит) и дробную часть - смещение внутри отрезка
+	// Вычисляем значение степенным рядом типа:
+	// ((a[0] * x + a[1]) * x + a[2]) * x + a[3]
+
+	int idx = angle >> (32 - pN); // индекс строки в таблице (целая часть)
+	uint32_t X = (angle << pN) >> ac_shift; // дробная часть угла (фикс. точка 0.32)
+	const int32_t* A = table + idx * (pw + 1); // указатель на нужную строку в таблице
+
+	int64_t sum = A[0];
+	for(int i = 1; i <= pw; i++)
+	{
+		sum *= X;
+
+		#ifdef RINT
+			sum += 0x80000000L;  // add 0.5 before round
+		#endif // RINT
+
+		sum >>= 32;
+		sum += A[i];
+	}
+	return sum;
+}
+
 
 //--------------------------------------------------------------------------------------
 double limit_degree(double angle)
@@ -126,13 +158,13 @@ void create_mag_phase_scale(s_HarmonicScale *scale, int type, gpointer user_data
 	{
 		digits = 3;
 		scale->label = gtk_label_new("Mag.:");
-		scale->adj   = gtk_adjustment_new (0, 0, 1, 0.01, 0.10, 0);
+		scale->adj   = gtk_adjustment_new (0, 0, 1, 0.001, 0.02, 0);
 	}
 	else if(type == 1) // phase
 	{
 		digits = 1;
 		scale->label = gtk_label_new("Phase:");
-		scale->adj   = gtk_adjustment_new (0, -180, 180, 1, 10, 0);
+		scale->adj   = gtk_adjustment_new (0, -180, 180, 0.1, 10, 0);
 	}
 	scale->scale = gtk_scale_new (GTK_ORIENTATION_VERTICAL, scale->adj);
 	gtk_scale_set_digits  (GTK_SCALE(scale->scale), digits);
@@ -373,15 +405,15 @@ void update_mag_phase_val(int idx)
 	{
 		for(int i = 0; i < num; i++)
 		{
-			harm_widgets[i].mag.val   = gtk_adjustment_get_value (harm_widgets[i].mag.adj);
-			harm_widgets[i].phase.val = gtk_adjustment_get_value (harm_widgets[i].phase.adj);
+			harm_widgets[i].mag.val   = gtk_adjustment_get_value (harm_widgets[i].mag.adj) * 0x10000LL;
+			harm_widgets[i].phase.val = gtk_adjustment_get_value (harm_widgets[i].phase.adj) * 0x100000000LL / 360;
 			harm_widgets[i].en        = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(harm_widgets[i].chk_enabled));
 		}
 	}
 	else if(idx >= 0 && idx < num)
 	{
-		harm_widgets[idx].mag.val   = gtk_adjustment_get_value (harm_widgets[idx].mag.adj);
-		harm_widgets[idx].phase.val = gtk_adjustment_get_value (harm_widgets[idx].phase.adj);
+		harm_widgets[idx].mag.val   = gtk_adjustment_get_value (harm_widgets[idx].mag.adj) * 0x10000LL;
+		harm_widgets[idx].phase.val = gtk_adjustment_get_value (harm_widgets[idx].phase.adj) * 0x100000000LL / 360;
 		harm_widgets[idx].en        = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(harm_widgets[idx].chk_enabled));
 		//printf("Button %i active = %i\n", idx, harm_widgets[idx].en);
 	}
@@ -395,10 +427,20 @@ void redraw_signal(cairo_t *cr)
 
 
 	//printf("redraw, w = %i, h = %i\n", w, h);
-	double comm_phase = gtk_adjustment_get_value(adj_CommonPhase) * G_PI / 180;
+	//double comm_phase = gtk_adjustment_get_value(adj_CommonPhase) * G_PI / 180;
+
+	// common phase - fix.point 0.32
+	int32_t comm_phase = gtk_adjustment_get_value(adj_CommonPhase) * 0x100000000LL / 360;
 	double amp_db = gtk_adjustment_get_value (adj_Amplify);
-	double sx = 2.5 * G_PI / w;
-	double sy = (double)h / 4.0 * pow(10, amp_db / 20.0);
+	//double sx = 2.5 * G_PI / w;
+//	double sy = (double)h / 4.0 * pow(10, amp_db / 20.0);
+
+	// scale X ~~ fix.point 0.32
+	uint32_t sx = 1.25 * 0x100000000LL / w;
+	// scale Y ~~ fix.point 16.16
+	uint32_t sy = pow(10, amp_db / 20.0) * 0x10000;
+	sy = sy * h / 4;
+
 	int    ovl = w / 10;            // сколько пикселов захватываем на соседних периодах
 	int harm_num = gtk_adjustment_get_value (adj_HarmNum);
 
@@ -419,24 +461,32 @@ void redraw_signal(cairo_t *cr)
 	cairo_set_source_rgb(cr, 0, 0, 0.5);
 	cairo_set_line_width(cr, 1.5);
 
+	//
+
 	for(int x = 0; x < w; x++)
 	{
-		double v = 0;
+		//double v = 0;
+		int64_t v64 = 0;
 		for(int i = 0; i < harm_num; i++)
 		{
 			int h = i + 1;
 			if(harm_widgets[i].en)
 			{
-				double phase = (x - ovl) * h * sx;
-				phase -= comm_phase * h;
-				phase += harm_widgets[i].phase.val * G_PI / 180.0;
-				v += sin(phase) * harm_widgets[i].mag.val;
+				uint32_t phase = sx * (x - ovl) * h;
+				phase -= (uint64_t)comm_phase * h;
+				phase += harm_widgets[i].phase.val;
+				int64_t i64 = get_sine_int32(sine_approx_table_256_order_1_acs_5, 8, 1, 5, phase);
+				v64 += i64 * harm_widgets[i].mag.val;
 			}
 		}
 
-		double y = hh - v * sy;
-		if(!x) cairo_move_to(cr, x, y);
-		else   cairo_line_to(cr, x, y);
+		v64 >>= 16;
+		v64 *= sy;
+		v64 >>= 32;
+
+		int y = v64;
+		if(!x) cairo_move_to(cr, x, hh - (double)y / 0x4000);
+		else   cairo_line_to(cr, x, hh - (double)y / 0x4000);
 	}
 	cairo_stroke(cr);
 }
