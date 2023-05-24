@@ -243,11 +243,11 @@ void create_main_window (void)
 	w1 = gtk_label_new("Preset:");
 	gtk_container_add (GTK_CONTAINER (box), w1);
 
-	w1 = gtk_combo_box_new();
-	gtk_container_add (GTK_CONTAINER (box), w1);
-	gtk_widget_set_margin_start  (w1, 19);
-	gtk_widget_set_hexpand(w1, TRUE);
-	g_signal_connect(w1, "changed", G_CALLBACK(on_cbx_Preset_changed), NULL);
+	cbx_Presets = gtk_combo_box_new();
+	gtk_container_add (GTK_CONTAINER (box), cbx_Presets);
+	gtk_widget_set_margin_start  (cbx_Presets, 19);
+	gtk_widget_set_hexpand(cbx_Presets, TRUE);
+	g_signal_connect(cbx_Presets, "changed", G_CALLBACK(on_cbx_Preset_changed), NULL);
 
 	// список пресетов
 	char *presets[] =
@@ -263,12 +263,12 @@ void create_main_window (void)
 		gtk_list_store_append (list, &iter);
 		gtk_list_store_set (list, &iter, 0, presets[i], -1);
 	}
-	gtk_combo_box_set_model(GTK_COMBO_BOX(w1), GTK_TREE_MODEL(list));
+	gtk_combo_box_set_model(GTK_COMBO_BOX(cbx_Presets), GTK_TREE_MODEL(list));
 	g_object_unref(list);
 	GtkCellRenderer* cell = gtk_cell_renderer_text_new();
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(w1), cell, TRUE);
-	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(w1), cell, "text", 0, NULL);
-	gtk_combo_box_set_active(GTK_COMBO_BOX(w1), 0);
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(cbx_Presets), cell, TRUE);
+	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(cbx_Presets), cell, "text", 0, NULL);
+	gtk_combo_box_set_active(GTK_COMBO_BOX(cbx_Presets), -1);
 
 	// сепаратор перед набором гармоник
 	w1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
@@ -468,7 +468,7 @@ void preset_to_harmonics(int type)
 				gtk_adjustment_set_value(hw->mag.adj, 1);
 				gtk_adjustment_set_value(hw->phase.adj, phase);
 				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hw->chk_enabled), TRUE);
-				gtk_adjustment_set_value (adj_Amplify, -30);
+				gtk_adjustment_set_value (adj_Amplify, -40);
 			}
 		break;
 
@@ -482,7 +482,7 @@ void preset_to_harmonics(int type)
 				gtk_adjustment_set_value(hw->mag.adj, mag);
 				gtk_adjustment_set_value(hw->phase.adj, 90);
 				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hw->chk_enabled), h & 1);
-				gtk_adjustment_set_value (adj_Amplify, -24);
+				gtk_adjustment_set_value (adj_Amplify, -34);
 			}
 		break;
 
@@ -496,7 +496,7 @@ void preset_to_harmonics(int type)
 				gtk_adjustment_set_value(hw->mag.adj, mag);
 				gtk_adjustment_set_value(hw->phase.adj, limit_degree(90 + 45 * h));
 				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hw->chk_enabled), h & 1);
-				gtk_adjustment_set_value (adj_Amplify, -24);
+				gtk_adjustment_set_value (adj_Amplify, -34);
 			}
 		break;
 
@@ -726,6 +726,7 @@ G_MODULE_EXPORT void on_cbx_Preset_changed (GtkComboBox *combobox, gpointer user
 {
 	//printf("on_cbx_Preset_changed\n");
 	//all_harms_set();
+	if(harmonics_in_update) return;
 	preset_to_harmonics(gtk_combo_box_get_active (combobox));
 	gtk_widget_queue_draw(drawing_area);
 }
@@ -745,7 +746,8 @@ int main (int argc, char *argv[])
 	create_draw_window ();
 	gtk_widget_show_all (window_draw);
 
-	preset_to_harmonics(0);
+	harmonics_in_update = FALSE;
+	gtk_combo_box_set_active(GTK_COMBO_BOX(cbx_Presets), 1);
 
 	/* передаём управление GTK+ */
 	gtk_main ();
