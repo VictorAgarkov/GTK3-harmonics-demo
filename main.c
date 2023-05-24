@@ -26,8 +26,7 @@ typedef struct
 	GtkWidget      *label;
 	GtkWidget      *scale;
 	GtkAdjustment  *adj;
-	//double          val;     // сюда переписывается значение из adj
-	int32_t         val;     // сюда переписывается значение из adj fix.point 0.32
+	int32_t         val;     // сюда переписывается значение из adj fix.point 0.32 (magnitude) or 16.16 (phase)
 }
 s_HarmonicScale;
 
@@ -52,8 +51,7 @@ GtkAdjustment *adj_CommonPhase;
 GtkAdjustment *adj_CommonDC;
 GtkAdjustment *adj_Amplify;
 
-
-s_HarmonicWidgets harm_widgets[55];
+s_HarmonicWidgets harm_widgets[99];
 
 GtkWidget     *window_draw;
 GtkWidget     *drawing_area;
@@ -102,9 +100,9 @@ void create_mag_phase_scale(s_HarmonicScale *scale, int type, gpointer user_data
 	int digits = 0;
 	if(type == 0) // magnitude
 	{
-		digits = 3;
+		digits = 5;
 		scale->label = gtk_label_new("Mag.:");
-		scale->adj   = gtk_adjustment_new (0, 0, 1, 0.001, 0.02, 0);
+		scale->adj   = gtk_adjustment_new (0, 0, 1, 0.00001, 0.02, 0);
 	}
 	else if(type == 1) // phase
 	{
@@ -135,9 +133,9 @@ void create_main_window (void)
 	GtkWidget *box, *w1,  *w2, *w3;
 
 	// adjustments
-	adj_Amplify     = gtk_adjustment_new(0, -60,    12, 0.1, 2, 0);
-	adj_CommonPhase = gtk_adjustment_new(0, -180,   180, 0.1, 10, 0);
-	adj_CommonDC    = gtk_adjustment_new(0, -1, 1,  0.01, 0.1, 0);
+	adj_Amplify     = gtk_adjustment_new(0, -60,    12,  0.1,  2,   0);
+	adj_CommonPhase = gtk_adjustment_new(0, -180,   180, 0.1,  10,  0);
+	adj_CommonDC    = gtk_adjustment_new(0, -1,     1,   0.01, 0.1, 0);
 	adj_HarmNum     = gtk_adjustment_new(5, 0, NUMOFARRAY(harm_widgets), 1, 10, 0);
 
 	g_signal_connect (adj_Amplify,     "value-changed", G_CALLBACK (on_adj_Common_value_changed), NULL);
@@ -169,7 +167,7 @@ void create_main_window (void)
 	gtk_widget_set_size_request(w1, 280, -1);
 	gtk_widget_set_hexpand(w1, TRUE);
 	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
-	gtk_range_set_round_digits (GTK_RANGE(w1), 0);
+//	gtk_range_set_round_digits (GTK_RANGE(w1), 0);
 	gtk_scale_set_digits  (GTK_SCALE(w1), 0);
 	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
 
@@ -185,8 +183,8 @@ void create_main_window (void)
 	gtk_widget_set_hexpand(w1, TRUE);
 	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
 	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
-	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
-	gtk_scale_set_digits  (GTK_SCALE(w1), 0);
+//	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
+	gtk_scale_set_digits  (GTK_SCALE(w1), 1);
 	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
 
 	w1 = gtk_button_new();
@@ -207,7 +205,7 @@ void create_main_window (void)
 	gtk_widget_set_hexpand(w1, TRUE);
 	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
 	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
-	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
+//	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
 	gtk_scale_set_digits  (GTK_SCALE(w1), 2);
 	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
 
@@ -229,7 +227,7 @@ void create_main_window (void)
 	gtk_widget_set_hexpand(w1, TRUE);
 	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
 	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
-	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
+//	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
 	gtk_scale_set_digits  (GTK_SCALE(w1), 1);
 	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
 
@@ -295,8 +293,6 @@ void create_main_window (void)
 	gtk_container_add (GTK_CONTAINER (w2), HarmBox);
 	gtk_widget_set_margin_top    (HarmBox, 5);
 	gtk_widget_set_margin_bottom (HarmBox, 5);
-
-
 }
 
 //---------------------------------------------------------------------------------------
@@ -319,7 +315,6 @@ void create_harmset(void)
 			hw->separ = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
 			gtk_container_add (GTK_CONTAINER (HarmBox), hw->separ);
 		}
-
 
 		hw->box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
 		gtk_widget_set_margin_start (hw->box, 5);
@@ -564,7 +559,7 @@ void redraw_signal(cairo_t *cr)
 	int harm_num = gtk_adjustment_get_value (adj_HarmNum);
 
 	// crosshair
-	cairo_set_source_rgb(cr, 0.8, 1, 0.8);
+	cairo_set_source_rgb(cr, 0.5, 1, 0.5);
 	cairo_set_line_width(cr, 1);
 	cairo_move_to(cr, 0,   hh);
 	cairo_line_to(cr, w-1, hh);
