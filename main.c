@@ -10,12 +10,12 @@ G_MODULE_EXPORT gboolean draw_area_on_draw (GtkWidget *widget, cairo_t *cr, gpoi
 G_MODULE_EXPORT void on_MagPhase_changed (GtkAdjustment *adjustment, gpointer user_data);
 G_MODULE_EXPORT void on_btn_Phase0_clicked (GtkButton *button, gpointer data);
 
-G_MODULE_EXPORT void on_adj_Amplify_value_changed (GtkAdjustment *adjustment, gpointer user_data);
-G_MODULE_EXPORT void on_adj_CommonPhase_value_changed (GtkAdjustment *adjustment, gpointer user_data);
+G_MODULE_EXPORT void on_adj_Common_value_changed (GtkAdjustment *adjustment, gpointer user_data);
 G_MODULE_EXPORT void on_HarmNum_changed (GtkAdjustment *adjustment, gpointer user_data);
 
 G_MODULE_EXPORT void on_btn_CommPhase0_clicked (GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void on_btn_Amplify0_clicked (GtkButton *button, gpointer user_data);
+G_MODULE_EXPORT void on_btn_CommDC0_clicked (GtkButton *button, gpointer user_data);
 
 G_MODULE_EXPORT void on_cbx_Preset_changed (GtkComboBox *combobox, gpointer user_data);
 
@@ -49,6 +49,7 @@ GtkWidget     *HarmBox;
 GtkWidget     *cbx_Presets;
 GtkAdjustment *adj_HarmNum;
 GtkAdjustment *adj_CommonPhase;
+GtkAdjustment *adj_CommonDC;
 GtkAdjustment *adj_Amplify;
 
 
@@ -95,6 +96,37 @@ double limit_degree(double angle)
 	int turns = (angle + 180) / 360;  //  number of turns
 	return angle - turns * 360;
 }
+//---------------------------------------------------------------------------------------
+void create_mag_phase_scale(s_HarmonicScale *scale, int type, gpointer user_data)
+{
+	int digits = 0;
+	if(type == 0) // magnitude
+	{
+		digits = 3;
+		scale->label = gtk_label_new("Mag.:");
+		scale->adj   = gtk_adjustment_new (0, 0, 1, 0.001, 0.02, 0);
+	}
+	else if(type == 1) // phase
+	{
+		digits = 1;
+		scale->label = gtk_label_new("Phase:");
+		scale->adj   = gtk_adjustment_new (0, -180, 180, 0.1, 10, 0);
+	}
+	scale->scale = gtk_scale_new (GTK_ORIENTATION_VERTICAL, scale->adj);
+	gtk_scale_set_digits  (GTK_SCALE(scale->scale), digits);
+	gtk_widget_set_size_request((scale->scale), -1, 200);
+	gtk_range_set_inverted(GTK_RANGE(scale->scale), TRUE);
+
+	g_signal_connect(scale->adj, "value_changed", G_CALLBACK(on_MagPhase_changed), user_data);
+
+
+}
+//---------------------------------------------------------------------------------------
+void add_mag_phase_scale_2_box(GtkWidget *box, s_HarmonicScale *scale)
+{
+	gtk_box_pack_start(GTK_BOX(box), scale->label, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(box), scale->scale, FALSE, FALSE, 0);
+}
 //--------------------------------------------------------------------------------------
 
 void create_main_window (void)
@@ -103,13 +135,15 @@ void create_main_window (void)
 	GtkWidget *box, *w1,  *w2, *w3;
 
 	// adjustments
-	adj_Amplify     = gtk_adjustment_new(0, -60, 12, 0.1, 2, 0);
-	adj_CommonPhase = gtk_adjustment_new(0, -180, 180, 0.1, 10, 0);
+	adj_Amplify     = gtk_adjustment_new(0, -60,    12, 0.1, 2, 0);
+	adj_CommonPhase = gtk_adjustment_new(0, -180,   180, 0.1, 10, 0);
+	adj_CommonDC    = gtk_adjustment_new(0, -1, 1,  0.01, 0.1, 0);
 	adj_HarmNum     = gtk_adjustment_new(5, 0, NUMOFARRAY(harm_widgets), 1, 10, 0);
 
-	g_signal_connect (adj_Amplify,     "value-changed", G_CALLBACK (on_adj_Amplify_value_changed),     NULL);
-	g_signal_connect (adj_CommonPhase, "value-changed", G_CALLBACK (on_adj_CommonPhase_value_changed), NULL);
-	g_signal_connect (adj_HarmNum,     "value-changed", G_CALLBACK (on_HarmNum_changed),               NULL);
+	g_signal_connect (adj_Amplify,     "value-changed", G_CALLBACK (on_adj_Common_value_changed), NULL);
+	g_signal_connect (adj_CommonPhase, "value-changed", G_CALLBACK (on_adj_Common_value_changed), NULL);
+	g_signal_connect (adj_CommonDC,    "value-changed", G_CALLBACK (on_adj_Common_value_changed), NULL);
+	g_signal_connect (adj_HarmNum,     "value-changed", G_CALLBACK (on_HarmNum_changed),          NULL);
 
 	// main window
 	window_main     = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -149,7 +183,7 @@ void create_main_window (void)
 	w1 = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_CommonPhase));
 	gtk_container_add (GTK_CONTAINER (box), w1);
 	gtk_widget_set_hexpand(w1, TRUE);
-	gtk_range_set_fill_level(GTK_RANGE(w1), 0);
+	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
 	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
 	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
 	gtk_scale_set_digits  (GTK_SCALE(w1), 0);
@@ -159,6 +193,29 @@ void create_main_window (void)
 	gtk_container_add (GTK_CONTAINER (box), w1);
 	gtk_button_set_label(GTK_BUTTON(w1), ">0<");
 	g_signal_connect(w1, "clicked", G_CALLBACK(on_btn_CommPhase0_clicked), NULL);
+
+
+	// "DC offset": label + scale + button
+	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_container_add (GTK_CONTAINER (main_box), box);
+
+	w1 = gtk_label_new("DC offset:");
+	gtk_container_add (GTK_CONTAINER (box), w1);
+
+	w1 = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_CommonDC));
+	gtk_container_add (GTK_CONTAINER (box), w1);
+	gtk_widget_set_hexpand(w1, TRUE);
+	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
+	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
+	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
+	gtk_scale_set_digits  (GTK_SCALE(w1), 2);
+	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
+
+	w1 = gtk_button_new();
+	gtk_container_add (GTK_CONTAINER (box), w1);
+	gtk_button_set_label(GTK_BUTTON(w1), ">0<");
+	g_signal_connect(w1, "clicked", G_CALLBACK(on_btn_CommDC0_clicked), NULL);
+
 
 	// "amplify": label + scale + button
 	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -170,10 +227,10 @@ void create_main_window (void)
 	w1 = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_Amplify));
 	gtk_container_add (GTK_CONTAINER (box), w1);
 	gtk_widget_set_hexpand(w1, TRUE);
-	gtk_range_set_fill_level(GTK_RANGE(w1), 0);
+	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
 	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
 	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
-	gtk_scale_set_digits  (GTK_SCALE(w1), 0);
+	gtk_scale_set_digits  (GTK_SCALE(w1), 1);
 	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
 
 	w1 = gtk_button_new();
@@ -296,37 +353,6 @@ void create_harmset(void)
 		// добавляем к основному боксу
 		gtk_container_add (GTK_CONTAINER (HarmBox), hw->box);
 	}
-}
-//---------------------------------------------------------------------------------------
-void create_mag_phase_scale(s_HarmonicScale *scale, int type, gpointer user_data)
-{
-	int digits = 0;
-	if(type == 0) // magnitude
-	{
-		digits = 3;
-		scale->label = gtk_label_new("Mag.:");
-		scale->adj   = gtk_adjustment_new (0, 0, 1, 0.001, 0.02, 0);
-	}
-	else if(type == 1) // phase
-	{
-		digits = 1;
-		scale->label = gtk_label_new("Phase:");
-		scale->adj   = gtk_adjustment_new (0, -180, 180, 0.1, 10, 0);
-	}
-	scale->scale = gtk_scale_new (GTK_ORIENTATION_VERTICAL, scale->adj);
-	gtk_scale_set_digits  (GTK_SCALE(scale->scale), digits);
-	gtk_widget_set_size_request((scale->scale), -1, 200);
-	gtk_range_set_inverted(GTK_RANGE(scale->scale), TRUE);
-
-	g_signal_connect(scale->adj, "value_changed", G_CALLBACK(on_MagPhase_changed), user_data);
-
-
-}
-//---------------------------------------------------------------------------------------
-void add_mag_phase_scale_2_box(GtkWidget *box, s_HarmonicScale *scale)
-{
-	gtk_box_pack_start(GTK_BOX(box), scale->label, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(box), scale->scale, FALSE, FALSE, 0);
 }
 //---------------------------------------------------------------------------------------
 void set_harm_set_visible(s_HarmonicWidgets *harm, gboolean en)
@@ -516,20 +542,23 @@ void redraw_signal(cairo_t *cr)
 	int hh = h / 2;
 
 
+
 	//printf("redraw, w = %i, h = %i\n", w, h);
 	//double comm_phase = gtk_adjustment_get_value(adj_CommonPhase) * G_PI / 180;
 
-	// common phase - fix.point 0.32
-	int32_t comm_phase = gtk_adjustment_get_value(adj_CommonPhase) * 0x100000000LL / 360;
 	double amp_db = gtk_adjustment_get_value (adj_Amplify);
-	//double sx = 2.5 * G_PI / w;
-//	double sy = (double)h / 4.0 * pow(10, amp_db / 20.0);
-
 	// scale X ~~ fix.point 0.32
 	uint32_t sx = 1.25 * 0x100000000LL / w;
 	// scale Y ~~ fix.point 16.16
 	uint32_t sy = pow(10, amp_db / 20.0) * 0x10000;
 	sy = sy * h / 4;
+
+	// common phase - fix.point 0.32
+	int32_t comm_phase = gtk_adjustment_get_value(adj_CommonPhase) * 0x100000000LL / 360;
+	int32_t comm_DC    = gtk_adjustment_get_value(adj_CommonDC) * sy / 0x10000;
+	//double sx = 2.5 * G_PI / w;
+//	double sy = (double)h / 4.0 * pow(10, amp_db / 20.0);
+
 
 	int    ovl = w / 10;            // сколько пикселов захватываем на соседних периодах
 	int harm_num = gtk_adjustment_get_value (adj_HarmNum);
@@ -575,8 +604,10 @@ void redraw_signal(cairo_t *cr)
 		v64 >>= 32;
 
 		int y = v64;
-		if(!x) cairo_move_to(cr, x, hh - (double)y / 0x4000);
-		else   cairo_line_to(cr, x, hh - (double)y / 0x4000);
+		double yy = hh - (double)y / 0x4000 - comm_DC;
+
+		if(!x) cairo_move_to(cr, x, yy);
+		else   cairo_line_to(cr, x, yy);
 	}
 	cairo_stroke(cr);
 }
@@ -635,6 +666,12 @@ G_MODULE_EXPORT void on_btn_CommPhase0_clicked (GtkButton *button, gpointer user
 	gtk_adjustment_set_value(adj_CommonPhase, 0.0);
 }
 //---------------------------------------------------------------------------------------
+G_MODULE_EXPORT void on_btn_CommDC0_clicked (GtkButton *button, gpointer user_data)
+{
+	//printf("on_btn_CommPhase0_clicked\n");
+	gtk_adjustment_set_value(adj_CommonDC, 0.0);
+}
+//---------------------------------------------------------------------------------------
 G_MODULE_EXPORT void on_btn_Phase0_clicked (GtkButton *button, gpointer user_data)
 {
 	//printf("on_btn_Phase0_clicked, data = %p\n", data);
@@ -661,7 +698,7 @@ G_MODULE_EXPORT gboolean draw_area_on_draw (GtkWidget *widget, cairo_t *cr, gpoi
 }
 
 //---------------------------------------------------------------------------------------
-G_MODULE_EXPORT void on_adj_CommonPhase_value_changed (GtkAdjustment *adjustment, gpointer user_data)
+G_MODULE_EXPORT void on_adj_Common_value_changed (GtkAdjustment *adjustment, gpointer user_data)
 {
 	gtk_widget_queue_draw(drawing_area);
 }
@@ -684,11 +721,11 @@ G_MODULE_EXPORT void on_HarmNum_changed (GtkAdjustment *adjustment, gpointer use
 	gtk_widget_queue_draw(drawing_area);
 }
 //---------------------------------------------------------------------------------------
-G_MODULE_EXPORT void on_adj_Amplify_value_changed (GtkAdjustment *adjustment, gpointer user_data)
-{
-	//printf("sig_HarmNum_changed\n");
-	gtk_widget_queue_draw(drawing_area);
-}
+//G_MODULE_EXPORT void on_adj_Amplify_value_changed (GtkAdjustment *adjustment, gpointer user_data)
+//{
+//	//printf("sig_HarmNum_changed\n");
+//	gtk_widget_queue_draw(drawing_area);
+//}
 //---------------------------------------------------------------------------------------
 G_MODULE_EXPORT void on_cbx_Preset_changed (GtkComboBox *combobox, gpointer user_data)
 {
