@@ -61,7 +61,17 @@ s_HarmonicWidgets harm_widgets[99];
 
 GtkWidget     *window_draw;
 GtkWidget     *drawing_area;
+GtkWidget     *label_DrawPoints;
 GtkWidget     *cbx_DrawPoints;
+
+GtkWidget *main_box;
+GtkWidget *label_HarmNum, *scale_HarmNum;
+GtkWidget *label_CmnPhase, *scale_CmnPhase, *btn_CommPhase0;
+GtkWidget *label_DcOffs, *scale_DcOffs, *btn_DcOffs0;
+GtkWidget *label_Amplify, *scale_Amplify, *btn_Amplify0;
+GtkWidget *label_Presets;
+GtkWidget *separator_HarmSet, *label_HarmSet, *scollw_HarmSet, *vport_HarmSet;
+
 
 gboolean harmonics_in_update = TRUE;  // устанавливаем в 1, когда массово обновляем параметры гармоник (что бы не рисовать много)
 
@@ -138,14 +148,6 @@ void add_mag_phase_scale_2_box(GtkWidget *box, s_HarmonicScale *scale)
 
 void create_main_window (void)
 {
-	GtkWidget *main_box;
-	GtkWidget *label_HarmNum, *scale_HarmNum;
-	GtkWidget *label_CmnPhase, *scale_CmnPhase, *btn_CommPhase0;
-	GtkWidget *label_DcOffs, *scale_DcOffs, *btn_DcOffs0;
-	GtkWidget *label_Amplify, *scale_Amplify, *btn_Amplify0;
-	GtkWidget *label_Presets;
-	GtkWidget *separator_HarmSet, *label_HarmSet, *scollw_HarmSet, *vport_HarmSet;
-
 
 	// adjustments
 	adj_Amplify     = gtk_adjustment_new(0, -60,    12,  0.1,  2,   0);
@@ -432,10 +434,12 @@ void create_draw_window(void)
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(cbx_DrawPoints), points[i]);
 	}
 	g_signal_connect(cbx_DrawPoints, "changed", G_CALLBACK(on_cbx_DrawPoints_changed), NULL);
-	gtk_widget_set_sensitive (cbx_DrawPoints, gtk_switch_get_active(GTK_SWITCH(header_XY_switch)));
+	gtk_widget_set_sensitive (cbx_DrawPoints, FALSE);
 	gtk_combo_box_set_active(GTK_COMBO_BOX(cbx_DrawPoints), 5);
+	label_DrawPoints = gtk_label_new("Points:");
+	gtk_widget_set_sensitive (label_DrawPoints, FALSE);
 	gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), cbx_DrawPoints);
-	gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), gtk_label_new("Points:"));
+	gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), label_DrawPoints);
 
 
 	// область рисования
@@ -731,7 +735,7 @@ void redraw_signal_XY(cairo_t *cr)
 
 	int harm_num = gtk_adjustment_get_value (adj_HarmNum);
 	int points_num = 1 << (gtk_combo_box_get_active (GTK_COMBO_BOX(cbx_DrawPoints)) + 5);
-	uint32_t sp = 0x100000000LL / (points_num - 1);
+	uint32_t sp = 0x100000000LL / points_num;
 
 	int32_t comm_phase = gtk_adjustment_get_value(adj_CommonPhase) * 0x100000000LL / 360;
 
@@ -768,7 +772,7 @@ void redraw_signal_XY(cairo_t *cr)
 	cairo_set_source_rgb(cr, 0, 0, 0.5);
 	cairo_set_line_width(cr, 1.5);
 
-	for(int p = 0; p < points_num; p++)
+	for(int p = 0; p <= points_num; p++)
 	{
 		int64_t x64 = 0, y64 = 0;
 		for(int i = 0; i < harm_num; i++)
@@ -930,7 +934,13 @@ G_MODULE_EXPORT void on_btn_XY_clicked (GtkSwitch *sw, gpointer user_data)
 {
 	//printf("on_btn_XY_clicked, state = %i\n", gtk_switch_get_active(sw));
 
-	gtk_widget_set_sensitive (cbx_DrawPoints, gtk_switch_get_active(sw));
+	gboolean is_XY = gtk_switch_get_active(sw);
+
+	gtk_widget_set_sensitive (cbx_DrawPoints, is_XY);
+	gtk_widget_set_sensitive (label_DrawPoints, is_XY);
+	gtk_widget_set_sensitive (label_DcOffs, !is_XY);
+	gtk_widget_set_sensitive (scale_DcOffs, !is_XY);
+	gtk_widget_set_sensitive (btn_DcOffs0,  !is_XY);
 
 	gtk_widget_queue_draw(drawing_area);
 }
