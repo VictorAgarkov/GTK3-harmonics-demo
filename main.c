@@ -130,7 +130,12 @@ void add_mag_phase_scale_2_box(GtkWidget *box, s_HarmonicScale *scale)
 void create_main_window (void)
 {
 	GtkWidget *main_box;
-	GtkWidget *box, *w1,  *w2, *w3;
+	GtkWidget *box_HarmNum, *label_HarmNum, *scale_HarmNum;
+	GtkWidget *box_CmnPhase, *label_CmnPhase, *scale_CmnPhase, *btn_CommPhase0;
+	GtkWidget *box_DcOffs, *label_DcOffs, *scale_DcOffs, *btn_DcOffs0;
+	GtkWidget *box_Amplify, *label_Amplify, *scale_Amplify, *btn_Amplify0;
+	GtkWidget *box_Presets, *label_Presets;
+	GtkWidget *separator_HarmSet, *label_HarmSet, *scollw_HarmSet, *vport_HarmSet;
 
 	// adjustments
 	adj_Amplify     = gtk_adjustment_new(0, -60,    12,  0.1,  2,   0);
@@ -155,96 +160,99 @@ void create_main_window (void)
 	gtk_widget_set_margin_bottom (main_box, 5);
 	gtk_container_add (GTK_CONTAINER (window_main), main_box);
 
-	// "harmonics number": label + scale
-	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_container_add (GTK_CONTAINER (main_box), box);
 
-	w1 = gtk_label_new("Harmonics number:");
-	gtk_container_add (GTK_CONTAINER (box), w1);
+		// "harmonics number": label + scale
+	box_HarmNum = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_container_add (GTK_CONTAINER (main_box), box_HarmNum);
 
-	w1 = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_HarmNum));
-	gtk_container_add (GTK_CONTAINER (box), w1);
-	gtk_widget_set_size_request(w1, 280, -1);
-	gtk_widget_set_hexpand(w1, TRUE);
-	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
+	label_HarmNum = gtk_label_new("Harmonics number:");
+	gtk_container_add (GTK_CONTAINER (box_HarmNum), label_HarmNum);
+
+	scale_HarmNum = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_HarmNum));
+	gtk_container_add (GTK_CONTAINER (box_HarmNum), scale_HarmNum);
+	gtk_widget_set_size_request(scale_HarmNum, 280, -1);
+	gtk_widget_set_hexpand(scale_HarmNum, TRUE);
+	gtk_range_set_restrict_to_fill_level (GTK_RANGE(scale_HarmNum), FALSE);
 //	gtk_range_set_round_digits (GTK_RANGE(w1), 0);
-	gtk_scale_set_digits  (GTK_SCALE(w1), 0);
-	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
+	gtk_scale_set_digits  (GTK_SCALE(scale_HarmNum), 0);
+	gtk_scale_set_value_pos (GTK_SCALE(scale_HarmNum), GTK_POS_RIGHT);
+
 
 	// "common phase": label + scale + button
-	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_container_add (GTK_CONTAINER (main_box), box);
+	box_CmnPhase = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_container_add (GTK_CONTAINER (main_box), box_CmnPhase);
 
-	w1 = gtk_label_new("Common phase, º");
-	gtk_container_add (GTK_CONTAINER (box), w1);
+	label_CmnPhase = gtk_label_new("Common phase, º");
+	gtk_container_add (GTK_CONTAINER (box_CmnPhase), label_CmnPhase);
 
-	w1 = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_CommonPhase));
-	gtk_container_add (GTK_CONTAINER (box), w1);
-	gtk_widget_set_hexpand(w1, TRUE);
-	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
-	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
-//	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
-	gtk_scale_set_digits  (GTK_SCALE(w1), 1);
-	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
+	scale_CmnPhase = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_CommonPhase));
+	gtk_container_add (GTK_CONTAINER (box_CmnPhase), scale_CmnPhase);
+	gtk_widget_set_hexpand(scale_CmnPhase, TRUE);
+	//gtk_range_set_fill_level(GTK_RANGE(scale_CmnPhase), 0);
+	gtk_range_set_restrict_to_fill_level (GTK_RANGE(scale_CmnPhase), FALSE);
+//	gtk_range_set_round_digits (GTK_RANGE(scale_CmnPhase), 1);
+	gtk_scale_set_digits  (GTK_SCALE(scale_CmnPhase), 1);
+	gtk_scale_set_value_pos (GTK_SCALE(scale_CmnPhase), GTK_POS_RIGHT);
 
-	w1 = gtk_button_new();
-	gtk_container_add (GTK_CONTAINER (box), w1);
-	gtk_button_set_label(GTK_BUTTON(w1), ">0<");
-	g_signal_connect(w1, "clicked", G_CALLBACK(on_btn_CommPhase0_clicked), NULL);
+	btn_CommPhase0 = gtk_button_new();
+	gtk_container_add (GTK_CONTAINER (box_CmnPhase), btn_CommPhase0);
+	gtk_button_set_label(GTK_BUTTON(btn_CommPhase0), ">0<");
+	g_signal_connect(btn_CommPhase0, "clicked", G_CALLBACK(on_btn_CommPhase0_clicked), NULL);
 
 
 	// "DC offset": label + scale + button
-	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_container_add (GTK_CONTAINER (main_box), box);
+	box_DcOffs = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_container_add (GTK_CONTAINER (main_box), box_DcOffs);
 
-	w1 = gtk_label_new("DC offset:");
-	gtk_container_add (GTK_CONTAINER (box), w1);
+	label_DcOffs = gtk_label_new("DC offset:");
+	gtk_container_add (GTK_CONTAINER (box_DcOffs), label_DcOffs);
 
-	w1 = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_CommonDC));
-	gtk_container_add (GTK_CONTAINER (box), w1);
-	gtk_widget_set_hexpand(w1, TRUE);
-	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
-	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
-//	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
-	gtk_scale_set_digits  (GTK_SCALE(w1), 2);
-	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
+	scale_DcOffs = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_CommonDC));
+	gtk_container_add (GTK_CONTAINER (box_DcOffs), scale_DcOffs);
+	gtk_widget_set_hexpand(scale_DcOffs, TRUE);
+	//gtk_range_set_fill_level(GTK_RANGE(scale_DcOffs), 0);
+	gtk_range_set_restrict_to_fill_level (GTK_RANGE(scale_DcOffs), FALSE);
+//	gtk_range_set_round_digits (GTK_RANGE(scale_DcOffs), 1);
+	gtk_scale_set_digits  (GTK_SCALE(scale_DcOffs), 2);
+	gtk_scale_set_value_pos (GTK_SCALE(scale_DcOffs), GTK_POS_RIGHT);
 
-	w1 = gtk_button_new();
-	gtk_container_add (GTK_CONTAINER (box), w1);
-	gtk_button_set_label(GTK_BUTTON(w1), ">0<");
-	g_signal_connect(w1, "clicked", G_CALLBACK(on_btn_CommDC0_clicked), NULL);
+	btn_DcOffs0 = gtk_button_new();
+	gtk_container_add (GTK_CONTAINER (box_DcOffs), btn_DcOffs0);
+	gtk_button_set_label(GTK_BUTTON(btn_DcOffs0), ">0<");
+	g_signal_connect(btn_DcOffs0, "clicked", G_CALLBACK(on_btn_CommDC0_clicked), NULL);
 
 
 	// "amplify": label + scale + button
-	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_container_add (GTK_CONTAINER (main_box), box);
+	box_Amplify = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_container_add (GTK_CONTAINER (main_box), box_Amplify);
 
-	w1 = gtk_label_new("Amplify, db");
-	gtk_container_add (GTK_CONTAINER (box), w1);
+	label_Amplify = gtk_label_new("Amplify, db");
+	gtk_container_add (GTK_CONTAINER (box_Amplify), label_Amplify);
 
-	w1 = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_Amplify));
-	gtk_container_add (GTK_CONTAINER (box), w1);
-	gtk_widget_set_hexpand(w1, TRUE);
-	//gtk_range_set_fill_level(GTK_RANGE(w1), 0);
-	gtk_range_set_restrict_to_fill_level (GTK_RANGE(w1), FALSE);
-//	gtk_range_set_round_digits (GTK_RANGE(w1), 1);
-	gtk_scale_set_digits  (GTK_SCALE(w1), 1);
-	gtk_scale_set_value_pos (GTK_SCALE(w1), GTK_POS_RIGHT);
+	scale_Amplify = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, GTK_ADJUSTMENT(adj_Amplify));
+	gtk_container_add (GTK_CONTAINER (box_Amplify), scale_Amplify);
+	gtk_widget_set_hexpand(scale_Amplify, TRUE);
+	//gtk_range_set_fill_level(GTK_RANGE(scale_Amplify), 0);
+	gtk_range_set_restrict_to_fill_level (GTK_RANGE(scale_Amplify), FALSE);
+//	gtk_range_set_round_digits (GTK_RANGE(scale_Amplify), 1);
+	gtk_scale_set_digits  (GTK_SCALE(scale_Amplify), 1);
+	gtk_scale_set_value_pos (GTK_SCALE(scale_Amplify), GTK_POS_RIGHT);
 
-	w1 = gtk_button_new();
-	gtk_container_add (GTK_CONTAINER (box), w1);
-	gtk_button_set_label(GTK_BUTTON(w1), ">0<");
-	g_signal_connect(w1, "clicked", G_CALLBACK(on_btn_Amplify0_clicked), NULL);
+	btn_Amplify0 = gtk_button_new();
+	gtk_container_add (GTK_CONTAINER (box_Amplify), btn_Amplify0);
+	gtk_button_set_label(GTK_BUTTON(btn_Amplify0), ">0<");
+	g_signal_connect(btn_Amplify0, "clicked", G_CALLBACK(on_btn_Amplify0_clicked), NULL);
+
 
 	// presets: label + combobox
-	box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_container_add (GTK_CONTAINER (main_box), box);
+	box_Presets = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_container_add (GTK_CONTAINER (main_box), box_Presets);
 
-	w1 = gtk_label_new("Preset:");
-	gtk_container_add (GTK_CONTAINER (box), w1);
+	label_Presets = gtk_label_new("Preset:");
+	gtk_container_add (GTK_CONTAINER (box_Presets), label_Presets);
 
 	cbx_Presets = gtk_combo_box_new();
-	gtk_container_add (GTK_CONTAINER (box), cbx_Presets);
+	gtk_container_add (GTK_CONTAINER (box_Presets), cbx_Presets);
 	gtk_widget_set_margin_start  (cbx_Presets, 19);
 	gtk_widget_set_hexpand(cbx_Presets, TRUE);
 	g_signal_connect(cbx_Presets, "changed", G_CALLBACK(on_cbx_Preset_changed), NULL);
@@ -270,27 +278,29 @@ void create_main_window (void)
 	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(cbx_Presets), cell, "text", 0, NULL);
 	gtk_combo_box_set_active(GTK_COMBO_BOX(cbx_Presets), -1);
 
+
+
 	// сепаратор перед набором гармоник
-	w1 = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-	gtk_container_add (GTK_CONTAINER (main_box), w1);
+	separator_HarmSet = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+	gtk_container_add (GTK_CONTAINER (main_box), separator_HarmSet);
 
 	// "harmonics set label": label
-	w1 = gtk_label_new("Harmonics set:");
-	gtk_container_add (GTK_CONTAINER (main_box), w1);
+	label_HarmSet = gtk_label_new("Harmonics set:");
+	gtk_container_add (GTK_CONTAINER (main_box), label_HarmSet);
 	//gtk_widget_set_hexpand(w1, TRUE);
 
-	// harmonics set: ScrolledWindow (w3)  <- ViewPort (w2) <- Box (HarmBox)
-	w3 = gtk_scrolled_window_new(NULL, NULL);
-	gtk_container_add (GTK_CONTAINER (main_box), w3);
-	gtk_scrolled_window_set_overlay_scrolling (GTK_SCROLLED_WINDOW(w3), FALSE);
-	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(w3), GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
-	gtk_scrolled_window_set_shadow_type  (GTK_SCROLLED_WINDOW(w3), GTK_SHADOW_ETCHED_OUT);
+	// harmonics set: ScrolledWindow (scollw_HarmSet)  <- ViewPort (vport_HarmSet) <- Box (HarmBox)
+	scollw_HarmSet = gtk_scrolled_window_new(NULL, NULL);
+	gtk_container_add (GTK_CONTAINER (main_box), scollw_HarmSet);
+	gtk_scrolled_window_set_overlay_scrolling (GTK_SCROLLED_WINDOW(scollw_HarmSet), FALSE);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(scollw_HarmSet), GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
+	gtk_scrolled_window_set_shadow_type  (GTK_SCROLLED_WINDOW(scollw_HarmSet), GTK_SHADOW_ETCHED_OUT);
 
-	w2 = gtk_viewport_new(NULL, NULL);
-	gtk_container_add (GTK_CONTAINER (w3), w2);
+	vport_HarmSet = gtk_viewport_new(NULL, NULL);
+	gtk_container_add (GTK_CONTAINER (scollw_HarmSet), vport_HarmSet);
 
 	HarmBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_container_add (GTK_CONTAINER (w2), HarmBox);
+	gtk_container_add (GTK_CONTAINER (vport_HarmSet), HarmBox);
 	gtk_widget_set_margin_top    (HarmBox, 5);
 	gtk_widget_set_margin_bottom (HarmBox, 5);
 }
