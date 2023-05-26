@@ -226,13 +226,6 @@ void create_main_window (void)
 
 	// presets: label + combobox
 
-	label_Presets = gtk_label_new("Preset:");
-
-	cbx_Presets = gtk_combo_box_new();
-	gtk_widget_set_margin_start  (cbx_Presets, 0);
-	gtk_widget_set_hexpand(cbx_Presets, TRUE);
-	g_signal_connect(cbx_Presets, "changed", G_CALLBACK(on_cbx_Preset_changed), NULL);
-
 	// список пресетов
 	char *presets[] =
 	{
@@ -240,19 +233,15 @@ void create_main_window (void)
 		"Single pulse (peak)", "Dual peak",  "Dual peak (45º)",
 	};
 
-	GtkTreeIter iter;
-	GtkListStore  *list = gtk_list_store_new(1, G_TYPE_STRING);
+	label_Presets = gtk_label_new("Preset:");
+
+	cbx_Presets = gtk_combo_box_text_new();
 	for(int i = 0; i < NUMOFARRAY(presets); i++)
 	{
-		gtk_list_store_append (list, &iter);
-		gtk_list_store_set (list, &iter, 0, presets[i], -1);
+		gtk_combo_box_text_append_text(cbx_Presets, presets[i]);
 	}
-	gtk_combo_box_set_model(GTK_COMBO_BOX(cbx_Presets), GTK_TREE_MODEL(list));
-	g_object_unref(list);
-	GtkCellRenderer* cell = gtk_cell_renderer_text_new();
-	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(cbx_Presets), cell, TRUE);
-	gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(cbx_Presets), cell, "text", 0, NULL);
-	gtk_combo_box_set_active(GTK_COMBO_BOX(cbx_Presets), -1);
+	g_signal_connect(cbx_Presets, "changed", G_CALLBACK(on_cbx_Preset_changed), NULL);
+
 
 	#define USE_GRID
 	#ifdef USE_GRID
@@ -399,6 +388,36 @@ void create_harmset(void)
 		// добавляем к основному боксу
 		gtk_container_add (GTK_CONTAINER (HarmBox), hw->box);
 	}
+}
+//------------------------------------------------------------------------------------------------------
+void create_draw_window(void)
+{
+	window_draw = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	//gtk_window_set_title (GTK_WINDOW(window_draw), "Draw results");
+	//gtk_window_set_decorated (GTK_WINDOW(window_draw), FALSE);
+	g_signal_connect(window_draw, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+	gtk_window_set_default_size(GTK_WINDOW(window_draw), 400, 300);
+
+
+	GtkWidget *header_bar = gtk_header_bar_new();
+	gtk_window_set_titlebar(  GTK_CONTAINER(window_draw), header_bar);
+	gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header_bar), TRUE);
+	gtk_header_bar_set_title (GTK_HEADER_BAR (header_bar), "Draw results");
+	gtk_header_bar_set_subtitle (GTK_HEADER_BAR (header_bar), "GTK3 harmonics demo");
+
+	GtkWidget *header_switch = gtk_switch_new();
+	gtk_container_add (GTK_CONTAINER(header_bar), header_switch);
+
+
+	drawing_area = gtk_drawing_area_new ();
+	gtk_container_add (GTK_CONTAINER(window_draw), drawing_area);
+
+	g_signal_connect (G_OBJECT (drawing_area), "draw", G_CALLBACK (draw_area_on_draw), NULL);
+	//g_signal_connect (G_OBJECT (drawing_area), "draw", G_CALLBACK (draw_circle), NULL);
+
+	//g_signal_connect (G_OBJECT (button), "clicked", G_CALLBACK (helloWorld), (gpointer) win);
+	//g_signal_connect(drawing_area, "draw", draw_area_on_draw, NULL);
+
 }
 //---------------------------------------------------------------------------------------
 void set_harm_set_visible(s_HarmonicWidgets *harm, gboolean en)
@@ -675,25 +694,6 @@ void redraw_signal(cairo_t *cr)
 //    cairo_fill (cr);
 //    return FALSE;
 //}
-//------------------------------------------------------------------------------------------------------
-void create_draw_window(void)
-{
-	window_draw = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_title (GTK_WINDOW(window_draw), "Draw results");
-	//gtk_window_set_decorated (GTK_WINDOW(window_draw), FALSE);
-	g_signal_connect(window_draw, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-	gtk_window_set_default_size(GTK_WINDOW(window_draw), 400, 300);
-
-	drawing_area = gtk_drawing_area_new ();
-	gtk_container_add (GTK_CONTAINER(window_draw), drawing_area);
-
-	g_signal_connect (G_OBJECT (drawing_area), "draw", G_CALLBACK (draw_area_on_draw), NULL);
-	//g_signal_connect (G_OBJECT (drawing_area), "draw", G_CALLBACK (draw_circle), NULL);
-
-	//g_signal_connect (G_OBJECT (button), "clicked", G_CALLBACK (helloWorld), (gpointer) win);
-	//g_signal_connect(drawing_area, "draw", draw_area_on_draw, NULL);
-
-}
 //---------------------------------------------------------------------------------------
 //G_MODULE_EXPORT void on_btn__clicked (GtkButton *button, gpointer user_data)
 //{
