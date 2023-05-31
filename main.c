@@ -23,6 +23,9 @@ G_MODULE_EXPORT void on_btn_XY_clicked       (GtkSwitch *sw, gpointer user_data)
 G_MODULE_EXPORT void on_btn_ToSquare_clicked (GtkButton *button, gpointer user_data);
 G_MODULE_EXPORT void on_cbx_DrawPoints_changed (GtkComboBox *combobox, gpointer user_data);
 
+
+G_MODULE_EXPORT void on_radio_ReImXy_toggled (GtkToggleButton* self, gpointer user_data);
+
 extern int32_t sine_approx_table_256_order_1_acs_5 [];
 //--------------------------------------------------------------------------------------
 typedef struct
@@ -71,7 +74,8 @@ GtkWidget *label_DcOffs, *scale_DcOffs, *btn_DcOffs0;
 GtkWidget *label_Amplify, *scale_Amplify, *btn_Amplify0;
 GtkWidget *label_Presets;
 GtkWidget *separator_HarmSet, *label_HarmSet, *scollw_HarmSet, *vport_HarmSet;
-
+GtkWidget *radio_ReImXy[3];
+int        mode_ReImXy = 0;
 
 gboolean harmonics_in_update = TRUE;  // устанавливаем в 1, когда массово обновляем параметры гармоник (что бы не рисовать много)
 
@@ -239,7 +243,7 @@ void create_main_window (void)
 	char *presets[] =
 	{
 		"First harmonic",  "Meander",          "Meander (45º)", "Sawtooth", "Triangle",
-		"Single pulse (peak)", "Dual peak",  "Dual peak (45º)",
+		"Single pulse (peak)", "Dual peak",  "Dual peak (45º)", "XY Gear [5]"
 	};
 
 	label_Presets = gtk_label_new("Preset:");
@@ -404,26 +408,32 @@ void create_draw_window(void)
 	//gtk_window_set_title (GTK_WINDOW(window_draw), "Draw results");
 	//gtk_window_set_decorated (GTK_WINDOW(window_draw), FALSE);
 	g_signal_connect(window_draw, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-	gtk_window_set_default_size(GTK_WINDOW(window_draw), 400, 300);
+	gtk_window_set_default_size(GTK_WINDOW(window_draw), 600, 480);
 
 	// заголовок с кнопками
 	GtkWidget *header_bar = gtk_header_bar_new();
 	gtk_window_set_titlebar( GTK_WINDOW(window_draw), header_bar);
 	//gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (header_bar), TRUE);
-	gtk_header_bar_set_title (GTK_HEADER_BAR (header_bar), "Draw results");
-	gtk_header_bar_set_subtitle (GTK_HEADER_BAR (header_bar), "GTK3 harmonics demo");
+	gtk_header_bar_set_title (GTK_HEADER_BAR (header_bar), "Draw");
+	gtk_header_bar_set_subtitle (GTK_HEADER_BAR (header_bar), "Inverse Fourier transform");
 
-	// кнопка-переключатель
-	gtk_header_bar_pack_start (GTK_HEADER_BAR(header_bar), gtk_label_new("XY"));
-	header_XY_switch = gtk_switch_new();
-	gtk_container_add (GTK_CONTAINER(header_bar), header_XY_switch);
-	g_signal_connect (header_XY_switch,  "state-set", G_CALLBACK (on_btn_XY_clicked), NULL);
+//	// кнопка-переключатель
+//	gtk_header_bar_pack_start (GTK_HEADER_BAR(header_bar), gtk_label_new("XY"));
+//	header_XY_switch = gtk_switch_new();
+//	gtk_container_add (GTK_CONTAINER(header_bar), header_XY_switch);
+//	g_signal_connect (header_XY_switch,  "state-set", G_CALLBACK (on_btn_XY_clicked), NULL);
 
-	// кнопка - оквадрачиватель
-	GtkWidget *btn_Square = gtk_button_new();
-	gtk_button_set_label(GTK_BUTTON(btn_Square), "[]");
-	gtk_header_bar_pack_start (GTK_HEADER_BAR(header_bar), btn_Square);
-	g_signal_connect(btn_Square, "clicked", G_CALLBACK(on_btn_ToSquare_clicked), NULL);
+
+	// выбор типа рисования (Re, Im, XY)
+	radio_ReImXy[0] = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON(NULL), "Re/t");
+	radio_ReImXy[1] = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON(radio_ReImXy[0]), "Im/t");
+	radio_ReImXy[2] = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON(radio_ReImXy[1]), "Im/Re");
+
+	for(int i = 0; i < NUMOFARRAY(radio_ReImXy); i++)
+	{
+		gtk_header_bar_pack_start(GTK_HEADER_BAR(header_bar), radio_ReImXy[i]);
+		g_signal_connect (radio_ReImXy[i], "toggled",  G_CALLBACK(on_radio_ReImXy_toggled), (void*)(intptr_t)i);
+	}
 
 	// список кол-ва точек
 	char *points[] = {"32", "64", "128", "256", "512", "1024", "2048", "4096", "8192", "16384"};
@@ -440,6 +450,14 @@ void create_draw_window(void)
 	gtk_widget_set_sensitive (label_DrawPoints, FALSE);
 	gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), cbx_DrawPoints);
 	gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), label_DrawPoints);
+
+	// кнопка - оквадрачиватель
+	GtkWidget *btn_Square = gtk_button_new();
+	gtk_button_set_label(GTK_BUTTON(btn_Square), "1:1");
+	gtk_header_bar_pack_end (GTK_HEADER_BAR(header_bar), btn_Square);
+	g_signal_connect(btn_Square, "clicked", G_CALLBACK(on_btn_ToSquare_clicked), NULL);
+
+
 
 
 	// область рисования
@@ -604,6 +622,26 @@ void preset_to_harmonics(int type)
 			}
 		break;
 
+		case 8:  // XY Gear [5]
+			for(int i = 0; i < NUMOFARRAY(harm_widgets); i++)
+			{
+				int h = i + 1;
+				s_HarmonicWidgets *hw = harm_widgets + i;
+				double mag = 0;
+				int active = 0;
+				if((i % 5) == 0)
+				{
+					mag = 1.0 / (h);
+					active = 1;
+				}
+				gtk_adjustment_set_value(hw->mag.adj, mag);
+				gtk_adjustment_set_value(hw->phase.adj, 0);
+				//gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hw->chk_enabled), TRUE);
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hw->chk_enabled), active);
+				gtk_adjustment_set_value (adj_Amplify, 0);
+			}
+		break;
+
 
 	}
 	harmonics_in_update = FALSE;
@@ -664,8 +702,12 @@ void redraw_signal_TimeY(cairo_t *cr)
 
 	int    ovl = aw / 10;            // сколько пикселов захватываем на соседних периодах
 	int harm_num = gtk_adjustment_get_value (adj_HarmNum);
+	uint32_t Im_phase = (mode_ReImXy == 1) ? 0x40000000 : 0;
 
 	// crosshair
+	cairo_set_source_rgb(cr, 1,1,1);
+	cairo_paint(cr);
+	cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 	cairo_set_source_rgb(cr, 0.5, 1, 0.5);
 	cairo_set_line_width(cr, 1);
 	cairo_move_to(cr, 0,     hh);
@@ -702,7 +744,7 @@ void redraw_signal_TimeY(cairo_t *cr)
 			{
 				uint32_t phase = sx * (x - ovl) * h;
 				phase -= (uint64_t)comm_phase * h;
-				phase += harm_widgets[i].phase.val;
+				phase += harm_widgets[i].phase.val + Im_phase;
 				int64_t i64 = get_sine_int32(sine_approx_table_256_order_1_acs_5, 8, 1, 5, phase);
 				v64 += i64 * harm_widgets[i].mag.val;
 			}
@@ -753,6 +795,9 @@ void redraw_signal_XY(cairo_t *cr)
 	sy = sy * ah / 4;
 
 	// crosshair
+	cairo_set_source_rgb(cr, 1,1,1);
+	cairo_paint(cr);
+	cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 	cairo_set_source_rgb(cr, 0.5, 1, 0.5);
 	cairo_set_line_width(cr, 1);
 
@@ -820,8 +865,8 @@ void redraw_signal_XY(cairo_t *cr)
 //---------------------------------------------------------------------------------------
 void redraw_signal(cairo_t *cr)
 {
-	if(gtk_switch_get_active (GTK_SWITCH(header_XY_switch))) redraw_signal_XY(cr);
-	else                                                    redraw_signal_TimeY(cr);
+	if(mode_ReImXy == 2) redraw_signal_XY(cr);
+	else                 redraw_signal_TimeY(cr);
 }
 
 //---------------------------------------------------------------------------------------
@@ -947,17 +992,24 @@ G_MODULE_EXPORT void on_btn_XY_clicked (GtkSwitch *sw, gpointer user_data)
 //--------------------------------------------------------------------------------------
 G_MODULE_EXPORT void on_btn_ToSquare_clicked (GtkButton *button, gpointer user_data)
 {
-	gint ww, wh;
+	gint ww, wh, new_w, new_h, aw, ah;
 	gtk_window_get_size (GTK_WINDOW(window_draw), &ww, &wh);
-	gint aw = gtk_widget_get_allocated_width(drawing_area);
-	gint ah = gtk_widget_get_allocated_height(drawing_area);
+
+	//gint dw, dh;
+	//gtk_window_get_default_size  (GTK_WINDOW(window_draw), &dw, &dh);
+	//printf("Size: %ix%i, def. size:%ix%i\n", ww, wh, dw, dh);
+
+	aw = gtk_widget_get_allocated_width(drawing_area);
+	ah = gtk_widget_get_allocated_height(drawing_area);
 
 	double sq = sqrt(aw * ah);
+	new_w = ww - aw + sq;
+	new_h = wh - ah + sq;
 
 	//printf("Old size = %i, %i, new size = %i\n", aw, ah, (int)sq);
 
 	//gtk_window_set_default_size (GTK_WINDOW(window_draw), ww - aw + sq, wh - ah + sq);
-	gtk_window_resize (GTK_WINDOW(window_draw), ww - aw + sq, wh - ah + sq);
+	gtk_window_resize (GTK_WINDOW(window_draw), new_w, new_h);
 	//gtk_widget_set_size_request(drawing_area, wh, wh);
 
 }
@@ -966,6 +1018,25 @@ G_MODULE_EXPORT void on_cbx_DrawPoints_changed (GtkComboBox *combobox, gpointer 
 {
 	if(harmonics_in_update) return;
 	gtk_widget_queue_draw(drawing_area);
+}
+//--------------------------------------------------------------------------------------
+G_MODULE_EXPORT void on_radio_ReImXy_toggled (GtkToggleButton* self, gpointer user_data)
+{
+	intptr_t data = (intptr_t)user_data;
+	gboolean is_active = gtk_toggle_button_get_active (self);
+	if(is_active)
+	{
+		mode_ReImXy = data;
+		gboolean is_XY = mode_ReImXy == 2;
+
+		gtk_widget_set_sensitive (cbx_DrawPoints,   is_XY);
+		gtk_widget_set_sensitive (label_DrawPoints, is_XY);
+		gtk_widget_set_sensitive (label_DcOffs,    !is_XY);
+		gtk_widget_set_sensitive (scale_DcOffs,    !is_XY);
+		gtk_widget_set_sensitive (btn_DcOffs0,     !is_XY);
+
+		gtk_widget_queue_draw(drawing_area);
+	}
 }
 //--------------------------------------------------------------------------------------
 int main (int argc, char *argv[])
